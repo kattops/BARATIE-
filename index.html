@@ -9,7 +9,7 @@
 <style>
 html,body{height:100%;margin:0;background:#0E1620;color:#9FB3C8;font-family:system-ui,sans-serif}
 #map{position:absolute;inset:0;background:#0E1620}
-.leaflet-tile-pane{filter:sepia(.6) hue-rotate(175deg) saturate(1.7) brightness(.8) contrast(1.15)}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(185deg) saturate(.7) brightness(.78) contrast(1.05)}
 #map{background:#0A121B}
 #fog{position:fixed;inset:-20%;z-index:450;pointer-events:none;background:radial-gradient(circle at 20% 30%,#9FB3C826 0,transparent 35%),radial-gradient(circle at 75% 65%,#9FB3C820 0,transparent 40%),radial-gradient(circle at 45% 92%,#9FB3C81a 0,transparent 30%);animation:dr 40s ease-in-out infinite alternate}
 @keyframes dr{to{transform:translate(8%,-6%) scale(1.15)}}
@@ -64,9 +64,9 @@ const showInv=()=>$("inv").textContent="Inventário: "+inv.length;
 showInv();
 
 const map=L.map("map",{zoomControl:false}).setView([-14.2,-51.9],4);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
- maxZoom:19,subdomains:"abcd",
- attribution:"&copy; OpenStreetMap &copy; CARTO"}).addTo(map);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
+ maxZoom:19,
+ attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
 
 function toast(t){const e=$("toast");e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2500)}
 
