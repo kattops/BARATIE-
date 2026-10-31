@@ -14,15 +14,21 @@ html,body{height:100%;margin:0;background:#0E1620;color:#9FB3C8;font-family:syst
 .bot{bottom:env(safe-area-inset-bottom,0px);justify-content:center}
 .pill,button{pointer-events:auto;background:#0E1620ee;border:1px solid #3B556E;color:#9FB3C8;border-radius:20px;padding:8px 14px;font-size:14px}
 .top .pill{margin-right:auto}
-#toast{position:absolute;z-index:1000;left:50%;top:70px;transform:translateX(-50%);background:#1B2A38;border:1px solid #3B556E;border-radius:8px;padding:8px 14px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:80%}
+#toast{position:absolute;z-index:4000;left:50%;top:70px;transform:translateX(-50%);background:#1B2A38;border:1px solid #3B556E;border-radius:8px;padding:8px 14px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:80%}
 .fr{width:22px;height:22px;border-radius:50%;background:var(--c);border:2px solid #ffffff55;box-shadow:0 0 14px 4px var(--c);animation:p 1.6s infinite alternate}
 @keyframes p{to{transform:scale(1.2);box-shadow:0 0 22px 8px var(--c)}}
+#cam{position:fixed;inset:0;z-index:3000;background:#05080c;display:none;overflow:hidden}
+#vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.85}
+#fx{position:absolute;width:64px;height:64px;transition:left .6s,top .6s;z-index:2}
+#hint{position:absolute;top:calc(env(safe-area-inset-top,0px) + 16px);left:0;right:0;text-align:center;font-size:18px;color:#fff;text-shadow:0 0 6px #000;z-index:2}
+#cls{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);left:50%;transform:translateX(-50%);z-index:2}
 .me{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid #2E86C1;box-shadow:0 0 0 8px #2E86C144}
 </style>
 </head>
 <body>
 <div id="map"></div>
 <div class="hud top"><div class="pill" id="inv">Frutas: 0</div></div>
+<div id="cam"><video id="vid" autoplay playsinline muted></video><div id="fx" class="fr"></div><div id="hint"></div><button id="cls">Fugir</button></div>
 <div id="toast"></div>
 <div class="hud bot"><button id="ctr">Centralizar</button><button id="tst">Modo teste: off</button></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -68,7 +74,7 @@ function spawn(){
  const ri=roll(), R=RAR[ri];
  const name=R.names[Math.floor(Math.random()*R.names.length)];
  const mk=L.marker([lat,lng],{icon:L.divIcon({className:"",html:'<div class="fr" style="--c:'+R.c+'"></div>',iconSize:[22,22]})}).addTo(map);
- const f={mk,name,rarity:R.n};
+ const f={mk,name,rarity:R.n,c:R.c};
  mk.on("click",()=>tap(f));
  fruits.push(f);
 }
@@ -77,6 +83,44 @@ function tap(f){
  if(!me)return toast("Aguardando o GPS...");
  const d=Math.round(map.distance(me,f.mk.getLatLng()));
  if(d>CATCH)return toast(f.name+" ("+f.rarity+") está a "+d+" m. Chegue a "+CATCH+" m para pegar.");
+ openCam(f);
+}
+
+let cur=null,hits=0,mv=null,capT=null,stream=null;
+async function openCam(f){
+ cur=f;hits=0;
+ $("cam").style.display="block";
+ $("hint").textContent="Toque na fruta 3 vezes!";
+ $("fx").style.setProperty("--c",f.c);
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
+  $("vid").srcObject=stream;
+ }catch(e){toast("Sem acesso à câmera. Usando fundo escuro.")}
+ moveFx();
+ mv=setInterval(moveFx,900);
+ capT=setTimeout(()=>{if(cur){closeCam();toast("A fruta escapou! Ela continua no mapa.")}},20000);
+}
+function moveFx(){
+ const e=$("fx");
+ e.style.left=(8+Math.random()*72)+"%";
+ e.style.top=(18+Math.random()*58)+"%";
+}
+function closeCam(){
+ clearInterval(mv);clearTimeout(capT);
+ if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+ $("vid").srcObject=null;
+ $("cam").style.display="none";
+ cur=null;
+}
+$("fx").onclick=()=>{
+ if(!cur)return;
+ hits++;
+ if(hits>=3){const f=cur;closeCam();collect(f)}
+ else{$("hint").textContent="Mais "+(3-hits)+"!";moveFx()}
+};
+$("cls").onclick=()=>{closeCam();toast("Você fugiu. A fruta continua no mapa.")};
+
+function collect(f){
  inv.push({name:f.name,rarity:f.rarity,t:Date.now()});
  try{localStorage.setItem("inv",JSON.stringify(inv))}catch(e){}
  map.removeLayer(f.mk);
