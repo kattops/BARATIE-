@@ -64,7 +64,7 @@ const showInv=()=>$("inv").textContent="Inventário: "+inv.length;
 showInv();
 
 const map=L.map("map",{zoomControl:false}).setView([-14.2,-51.9],4);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",{
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
  maxZoom:19,subdomains:"abcd",
  attribution:"&copy; OpenStreetMap &copy; CARTO"}).addTo(map);
 
@@ -224,4 +224,3 @@ startGPS();
 </script>
 </body>
 </html>
-
