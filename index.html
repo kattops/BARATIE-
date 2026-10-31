@@ -4,11 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Frutas do Abismo</title>
+<meta name="theme-color" content="#0A121B">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 html,body{height:100%;margin:0;background:#0E1620;color:#9FB3C8;font-family:system-ui,sans-serif}
 #map{position:absolute;inset:0;background:#0E1620}
-.leaflet-tile-pane{filter:hue-rotate(15deg) saturate(.8) brightness(.95)}
+.leaflet-tile-pane{filter:sepia(.6) hue-rotate(175deg) saturate(1.7) brightness(.8) contrast(1.15)}
+#map{background:#0A121B}
+#fog{position:fixed;inset:-20%;z-index:450;pointer-events:none;background:radial-gradient(circle at 20% 30%,#9FB3C826 0,transparent 35%),radial-gradient(circle at 75% 65%,#9FB3C820 0,transparent 40%),radial-gradient(circle at 45% 92%,#9FB3C81a 0,transparent 30%);animation:dr 40s ease-in-out infinite alternate}
+@keyframes dr{to{transform:translate(8%,-6%) scale(1.15)}}
+#vg{position:fixed;inset:0;z-index:800;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,#05080ccc 100%)}
+.fr{position:relative}
+.fr.lg::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--c);animation:rg 2s ease-out infinite}
+@keyframes rg{from{transform:scale(.8);opacity:.8}to{transform:scale(2);opacity:0}}
 .hud{position:absolute;z-index:1000;left:0;right:0;padding:10px;display:flex;gap:8px;pointer-events:none}
 .top{top:env(safe-area-inset-top,0px)}
 .bot{bottom:env(safe-area-inset-bottom,0px);justify-content:center}
@@ -29,11 +37,13 @@ html,body{height:100%;margin:0;background:#0E1620;color:#9FB3C8;font-family:syst
 .card.sel{border-color:#fff;box-shadow:0 0 0 2px #ffffff55}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 #fuse{width:100%;margin-top:14px;padding:12px;border-radius:10px;font-size:16px;background:#4A235A;border-color:#A569D6;color:#fff}
-.me{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid #2E86C1;box-shadow:0 0 0 8px #2E86C144}
+.me{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid #2E86C1;box-shadow:0 0 0 8px #2E86C144;animation:pm 2.4s ease-in-out infinite}
+@keyframes pm{50%{box-shadow:0 0 0 14px #2E86C122}}
 </style>
 </head>
 <body>
 <div id="map"></div>
+<div id="fog"></div><div id="vg"></div>
 <div class="hud top"><div class="pill" id="inv">Frutas: 0</div></div>
 <div id="cam"><video id="vid" autoplay playsinline muted></video><div id="fx" class="fr"></div><div id="hint"></div><button id="cls">Fugir</button></div>
 <div id="pnl"><div class="hd"><b>Inventário</b><button id="pc">Fechar</button></div><div id="pb"></div></div>
@@ -54,7 +64,7 @@ const showInv=()=>$("inv").textContent="Inventário: "+inv.length;
 showInv();
 
 const map=L.map("map",{zoomControl:false}).setView([-14.2,-51.9],4);
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",{
  maxZoom:19,subdomains:"abcd",
  attribution:"&copy; OpenStreetMap &copy; CARTO"}).addTo(map);
 
@@ -81,7 +91,7 @@ function spawn(){
  const lng=me.lng+(d*Math.sin(a))/(111320*Math.cos(me.lat*Math.PI/180));
  const ri=roll(), R=RAR[ri];
  const name=R.names[Math.floor(Math.random()*R.names.length)];
- const mk=L.marker([lat,lng],{icon:L.divIcon({className:"",html:'<div class="fr" style="--c:'+R.c+'"></div>',iconSize:[22,22]})}).addTo(map);
+ const mk=L.marker([lat,lng],{icon:L.divIcon({className:"",html:'<div class="fr'+(ri===2?" lg":"")+'" style="--c:'+R.c+'"></div>',iconSize:[22,22]})}).addTo(map);
  const f={mk,name,rarity:R.n,c:R.c};
  mk.on("click",()=>tap(f));
  fruits.push(f);
@@ -214,3 +224,4 @@ startGPS();
 </script>
 </body>
 </html>
+
