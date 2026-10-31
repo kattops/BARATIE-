@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Frutas do Abismo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+html,body{height:100%;margin:0;background:#0E1620;color:#9FB3C8;font-family:system-ui,sans-serif}
+#map{position:absolute;inset:0;background:#0E1620}
+.leaflet-tile-pane{filter:hue-rotate(15deg) saturate(.8) brightness(.95)}
+.hud{position:absolute;z-index:1000;left:0;right:0;padding:10px;display:flex;gap:8px;pointer-events:none}
+.top{top:env(safe-area-inset-top,0px)}
+.bot{bottom:env(safe-area-inset-bottom,0px);justify-content:center}
+.pill,button{pointer-events:auto;background:#0E1620ee;border:1px solid #3B556E;color:#9FB3C8;border-radius:20px;padding:8px 14px;font-size:14px}
+.top .pill{margin-right:auto}
+#toast{position:absolute;z-index:1000;left:50%;top:70px;transform:translateX(-50%);background:#1B2A38;border:1px solid #3B556E;border-radius:8px;padding:8px 14px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:80%}
+.fr{width:22px;height:22px;border-radius:50%;background:var(--c);border:2px solid #ffffff55;box-shadow:0 0 14px 4px var(--c);animation:p 1.6s infinite alternate}
+@keyframes p{to{transform:scale(1.2);box-shadow:0 0 22px 8px var(--c)}}
+.me{width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid #2E86C1;box-shadow:0 0 0 8px #2E86C144}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="hud top"><div class="pill" id="inv">Frutas: 0</div></div>
+<div id="toast"></div>
+<div class="hud bot"><button id="ctr">Centralizar</button><button id="tst">Modo teste: off</button></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const RAR=[
+ {n:"comum",c:"#E74C3C",w:.75,names:["Fruta da Brasa","Fruta do Eco","Fruta da Corda","Fruta da Areia"]},
+ {n:"rara",c:"#5DADE2",w:.2,names:["Fruta da Maré","Fruta do Gelo Negro","Fruta do Relâmpago"]},
+ {n:"lendária",c:"#A569D6",w:.05,names:["Fruta do Abismo","Fruta da Sombra Antiga"]}
+];
+const MAXF=15, RADIUS=300, CATCH=50;
+let me=null, meMk=null, fruits=[], watchId=null, test=false, inv=[];
+try{inv=JSON.parse(localStorage.getItem("inv")||"[]")}catch(e){}
+const $=id=>document.getElementById(id);
+const showInv=()=>$("inv").textContent="Frutas: "+inv.length;
+showInv();
+
+const map=L.map("map",{zoomControl:false}).setView([-14.2,-51.9],4);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
+ maxZoom:19,subdomains:"abcd",
+ attribution:"&copy; OpenStreetMap &copy; CARTO"}).addTo(map);
+
+function toast(t){const e=$("toast");e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2500)}
+
+function setPos(lat,lng){
+ const first=!me;
+ me=L.latLng(lat,lng);
+ if(!meMk) meMk=L.marker(me,{icon:L.divIcon({className:"",html:'<div class="me"></div>',iconSize:[16,16]}),interactive:false}).addTo(map);
+ else meMk.setLatLng(me);
+ if(first){map.setView(me,17);for(let i=0;i<8;i++)spawn()}
+}
+
+function roll(){
+ let r=Math.random(),a=0;
+ for(let i=0;i<RAR.length;i++){a+=RAR[i].w;if(r<a)return i}
+ return 0;
+}
+
+function spawn(){
+ if(!me||fruits.length>=MAXF)return;
+ const d=RADIUS*Math.sqrt(Math.random()), a=Math.random()*Math.PI*2;
+ const lat=me.lat+(d*Math.cos(a))/111320;
+ const lng=me.lng+(d*Math.sin(a))/(111320*Math.cos(me.lat*Math.PI/180));
+ const ri=roll(), R=RAR[ri];
+ const name=R.names[Math.floor(Math.random()*R.names.length)];
+ const mk=L.marker([lat,lng],{icon:L.divIcon({className:"",html:'<div class="fr" style="--c:'+R.c+'"></div>',iconSize:[22,22]})}).addTo(map);
+ const f={mk,name,rarity:R.n};
+ mk.on("click",()=>tap(f));
+ fruits.push(f);
+}
+
+function tap(f){
+ if(!me)return toast("Aguardando o GPS...");
+ const d=Math.round(map.distance(me,f.mk.getLatLng()));
+ if(d>CATCH)return toast(f.name+" ("+f.rarity+") está a "+d+" m. Chegue a "+CATCH+" m para pegar.");
+ inv.push({name:f.name,rarity:f.rarity,t:Date.now()});
+ try{localStorage.setItem("inv",JSON.stringify(inv))}catch(e){}
+ map.removeLayer(f.mk);
+ fruits=fruits.filter(x=>x!==f);
+ showInv();
+ toast("Você pegou: "+f.name+" ("+f.rarity+")");
+}
+
+function startGPS(){
+ if(!navigator.geolocation)return toast("Este aparelho não tem GPS no navegador.");
+ watchId=navigator.geolocation.watchPosition(
+  p=>setPos(p.coords.latitude,p.coords.longitude),
+  ()=>toast("Sem acesso ao GPS. Permita a localização ou use o modo teste."),
+  {enableHighAccuracy:true,maximumAge:2000}
+ );
+}
+
+$("ctr").onclick=()=>{if(me)map.setView(me,17);else toast("Aguardando o GPS...")};
+$("tst").onclick=()=>{
+ test=!test;
+ $("tst").textContent="Modo teste: "+(test?"on":"off");
+ if(test){
+  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}
+  toast("Toque no mapa para mover o jogador.");
+ }else startGPS();
+};
+map.on("click",e=>{if(test)setPos(e.latlng.lat,e.latlng.lng)});
+
+setInterval(()=>{
+ if(!me)return;
+ fruits=fruits.filter(f=>{
+  if(map.distance(me,f.mk.getLatLng())>RADIUS*2){map.removeLayer(f.mk);return false}
+  return true;
+ });
+ spawn();
+},10000);
+
+startGPS();
+</script>
+</body>
+</html>
