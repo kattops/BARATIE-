@@ -20,6 +20,16 @@ html,body{height:100%;margin:0;background:#0E1620;color:#9FB3C8;font-family:syst
 @keyframes fl{50%{transform:translateY(-4px)}}
 .mini{display:inline-block;width:22px;height:24px;vertical-align:middle;margin-right:8px;filter:drop-shadow(0 0 4px var(--c))}
 .mini svg{width:100%;height:100%;display:block}
+.av{width:40px;height:52px;position:relative}
+.av svg{width:100%;height:100%;display:block;overflow:visible}
+.av.fl{transform:scaleX(-1)}
+.av .legL,.av .legR{transform-box:fill-box;transform-origin:50% 0}
+.av.walk .legL{animation:lg .4s ease-in-out infinite alternate}
+.av.walk .legR{animation:lg .4s ease-in-out infinite alternate-reverse}
+.av.walk .avb{animation:bob .4s ease-in-out infinite}
+.avb{width:100%;height:100%}
+@keyframes lg{from{transform:rotate(-24deg)}to{transform:rotate(24deg)}}
+@keyframes bob{50%{transform:translateY(-3px)}}
 .fr.lg::after,.fv.lg::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--c);animation:rg 2s ease-out infinite}
 @keyframes rg{from{transform:scale(.8);opacity:.8}to{transform:scale(2);opacity:0}}
 .hud{position:absolute;z-index:1000;left:0;right:0;padding:10px;display:flex;gap:8px;pointer-events:none}
@@ -81,6 +91,8 @@ const FR=(r,nm)=>{
   +(t>=4?'<path d="M6 12 l.9 2.2 2.2.9 -2.2.9 -.9 2.2 -.9-2.2 -2.2-.9 2.2-.9z" fill="#fff" fill-opacity=".9"/>':'')
   +'<ellipse cx="13" cy="18" rx="3.5" ry="2.2" fill="#fff" fill-opacity=".35" transform="rotate(-30 13 18)"/></svg>';
 };
+const AVSVG='<svg viewBox="0 0 40 52"><ellipse cx="20" cy="47" rx="11" ry="3.5" fill="#000" opacity=".35"/><g class="avb"><g class="legL"><rect x="13" y="34" width="6" height="12" rx="3" fill="#2B3A4F"/></g><g class="legR"><rect x="21" y="34" width="6" height="12" rx="3" fill="#2B3A4F"/></g><rect x="6" y="21" width="5" height="12" rx="2.5" fill="#E8B88A"/><rect x="29" y="21" width="5" height="12" rx="2.5" fill="#E8B88A"/><rect x="11" y="20" width="18" height="17" rx="6" fill="#B23A48"/><path d="M11 27h18M11 32h18" stroke="#fff" stroke-opacity=".45" stroke-width="1.5"/><circle cx="20" cy="14" r="9" fill="#E8B88A"/><path d="M10 11 Q20 -2 30 11 Q20 8 10 11Z" fill="#1B2A38"/><rect x="8" y="10" width="24" height="3" rx="1.5" fill="#1B2A38"/><rect x="12" y="9" width="16" height="1.5" fill="#F5B041"/><circle cx="16.5" cy="15.5" r="1.2" fill="#222"/><circle cx="23.5" cy="15.5" r="1.2" fill="#222"/></g></svg>';
+let av=null,avMk=null,rng=null,follow=true,anim=null;
 const MAXF=15, RADIUS=300, CATCH=50;
 let me=null, meMk=null, fruits=[], watchId=null, test=false, inv=[];
 try{inv=JSON.parse(localStorage.getItem("inv")||"[]")}catch(e){}
@@ -95,12 +107,38 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{
 
 function toast(t){const e=$("toast");e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2500)}
 
+function avEl(){return document.getElementById("av")}
+function moveAv(to,dur){
+ cancelAnimationFrame(anim);
+ const from=av,t0=performance.now(),e=avEl();
+ if(e){
+  if(Math.abs(to.lng-from.lng)>1e-8)e.classList.toggle("fl",to.lng<from.lng);
+  e.classList.add("walk");
+ }
+ const step=now=>{
+  const k=Math.min(1,(now-t0)/dur);
+  av=L.latLng(from.lat+(to.lat-from.lat)*k,from.lng+(to.lng-from.lng)*k);
+  avMk.setLatLng(av);rng.setLatLng(av);
+  if(follow)map.panTo(av,{animate:false});
+  if(k<1)anim=requestAnimationFrame(step);
+  else{const x=avEl();if(x)x.classList.remove("walk")}
+ };
+ anim=requestAnimationFrame(step);
+}
 function setPos(lat,lng){
- const first=!me;
- me=L.latLng(lat,lng);
- if(!meMk) meMk=L.marker(me,{icon:L.divIcon({className:"",html:'<div class="me"></div>',iconSize:[16,16]}),interactive:false}).addTo(map);
- else meMk.setLatLng(me);
- if(first){map.setView(me,17);for(let i=0;i<8;i++)spawn()}
+ const to=L.latLng(lat,lng),first=!me;
+ me=to;
+ if(first){
+  av=to;
+  avMk=L.marker(to,{icon:L.divIcon({className:"",html:'<div class="av" id="av">'+AVSVG+'</div>',iconSize:[40,52],iconAnchor:[20,46]}),interactive:false,zIndexOffset:1000}).addTo(map);
+  rng=L.circle(to,{radius:CATCH,color:"#5DADE2",weight:1,dashArray:"4 6",fillColor:"#5DADE2",fillOpacity:.06,interactive:false}).addTo(map);
+  map.setView(to,18);
+  for(let i=0;i<8;i++)spawn();
+ }else{
+  const d=map.distance(av,to);
+  if(d<1.5)return;
+  moveAv(to,Math.min(2000,Math.max(600,d*40)));
+ }
 }
 
 function roll(){
@@ -183,7 +221,8 @@ function startGPS(){
  );
 }
 
-$("ctr").onclick=()=>{if(me)map.setView(me,17);else toast("Aguardando o GPS...")};
+$("ctr").onclick=()=>{if(av){follow=true;map.setView(av,18)}else toast("Aguardando o GPS...")};
+map.on("dragstart",()=>{follow=false});
 $("tst").onclick=()=>{
  test=!test;
  $("tst").textContent="Modo teste: "+(test?"on":"off");
@@ -192,7 +231,7 @@ $("tst").onclick=()=>{
   toast("Toque no mapa para mover o jogador.");
  }else startGPS();
 };
-map.on("click",e=>{if(test)setPos(e.latlng.lat,e.latlng.lng)});
+map.on("click",e=>{if(test){follow=true;setPos(e.latlng.lat,e.latlng.lng)}});
 
 setInterval(()=>{
  if(!me)return;
